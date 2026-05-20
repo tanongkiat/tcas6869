@@ -177,6 +177,15 @@
     tbody td.delta-down { text-align: center; font-weight: 700; color: #b71c1c; white-space: nowrap; }
     tbody td.delta-zero { text-align: center; color: #999; white-space: nowrap; }
 
+    /* ── Sortable headers ── */
+    thead tr.sub-head th.sortable { cursor: pointer; user-select: none; }
+    thead tr.sub-head th.sortable:hover { background: #d1d5f0; }
+    thead tr.sub-head th.band-68.sortable:hover { background: #bbdefb; }
+    thead tr.sub-head th.band-69.sortable:hover { background: #e1bee7; }
+    thead tr.sub-head th.delta.sortable:hover { background: #ce93d8; }
+    thead tr.sub-head th.sort-asc::after  { content: " ▲"; font-size: .75em; opacity: .8; }
+    thead tr.sub-head th.sort-desc::after { content: " ▼"; font-size: .75em; opacity: .8; }
+
     /* year column bands */
     .band-68 { background: #e3f2fd14; }
     .band-69 { background: #f3e5f514; }
@@ -259,20 +268,20 @@
         <th>Δ ต่ำสุด</th>
       </tr>
       <tr class="sub-head">
-        <th class="left">สถาบัน</th>
-        <th class="left">วิทยาเขต</th>
-        <th class="left">คณะ</th>
-        <th class="left">หลักสูตร / สาขา</th>
+        <th class="left sortable" data-sort="สถาบัน">สถาบัน</th>
+        <th class="left sortable" data-sort="วิทยาเขต">วิทยาเขต</th>
+        <th class="left sortable" data-sort="คณะ">คณะ</th>
+        <th class="left sortable" data-sort="หลักสูตร">หลักสูตร / สาขา</th>
         <!-- 2568 -->
-        <th class="band-68">รับ</th>
-        <th class="band-68">สูงสุด</th>
-        <th class="band-68">ต่ำสุด</th>
+        <th class="band-68 sortable" data-sort="รับ68">รับ</th>
+        <th class="band-68 sortable" data-sort="สูงสุด68">สูงสุด</th>
+        <th class="band-68 sortable" data-sort="ต่ำสุด68">ต่ำสุด</th>
         <!-- 2569 -->
-        <th class="band-69">รับ</th>
-        <th class="band-69">สูงสุด</th>
-        <th class="band-69">ต่ำสุด</th>
+        <th class="band-69 sortable" data-sort="รับ69">รับ</th>
+        <th class="band-69 sortable" data-sort="สูงสุด69">สูงสุด</th>
+        <th class="band-69 sortable" data-sort="ต่ำสุด69">ต่ำสุด</th>
         <!-- delta -->
-        <th class="delta">69 − 68</th>
+        <th class="delta sortable" data-sort="delta">69 − 68</th>
       </tr>
     </thead>
     <tbody id="tbody">
@@ -286,6 +295,8 @@
 <script>
   const PER_PAGE = 100;
   let currentFilter = "all";
+  let sortCol = "";
+  let sortDir = "asc";
   let debounceTimer;
 
   document.getElementById("q").addEventListener("input", () => {
@@ -295,6 +306,29 @@
   document.getElementById("q").addEventListener("keydown", e => {
     if (e.key === "Enter") { clearTimeout(debounceTimer); doSearch(1); }
   });
+
+  document.querySelectorAll("thead th.sortable").forEach(th => {
+    th.addEventListener("click", () => {
+      const col = th.dataset.sort;
+      if (sortCol === col) {
+        sortDir = sortDir === "asc" ? "desc" : "asc";
+      } else {
+        sortCol = col;
+        sortDir = "asc";
+      }
+      updateSortHeaders();
+      doSearch(1);
+    });
+  });
+
+  function updateSortHeaders() {
+    document.querySelectorAll("thead th.sortable").forEach(th => {
+      th.classList.remove("sort-asc", "sort-desc");
+      if (th.dataset.sort === sortCol) {
+        th.classList.add(sortDir === "asc" ? "sort-asc" : "sort-desc");
+      }
+    });
+  }
 
   function setFilter(f, btn) {
     currentFilter = f;
@@ -342,6 +376,7 @@
     const q   = document.getElementById("q").value.trim();
     let url = `/api/compare?q=${encodeURIComponent(q)}&page=${page}&per_page=${PER_PAGE}`;
     if (URL_CODES) url += `&codes=${encodeURIComponent(URL_CODES)}`;
+    if (sortCol)   url += `&sort=${encodeURIComponent(sortCol)}&dir=${sortDir}`;
 
     document.getElementById("tbody").innerHTML =
       `<tr class="state-row"><td colspan="11">กำลังค้นหา…</td></tr>`;

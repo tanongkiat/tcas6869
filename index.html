@@ -108,6 +108,10 @@
       user-select: none;
     }
     thead th.num { text-align: right; }
+    thead th.sortable { cursor: pointer; }
+    thead th.sortable:hover { background: #d1d5f0; }
+    thead th.sort-asc::after  { content: " ▲"; font-size: .75em; opacity: .8; }
+    thead th.sort-desc::after { content: " ▼"; font-size: .75em; opacity: .8; }
     tbody tr { transition: background .1s; }
     tbody tr:hover { background: #f3f4fc; }
     tbody tr:last-child td { border-bottom: none; }
@@ -273,17 +277,17 @@
     <thead>
       <tr>
         <th class="cb-col"><input type="checkbox" id="chk-all" title="เลือกทั้งหมดในหน้านี้" onchange="toggleAll(this)"></th>
-        <th>ปี</th>
-        <th>สถาบัน</th>
-        <th>วิทยาเขต</th>
-        <th>คณะ</th>
-        <th>หลักสูตร</th>
-        <th>สาขา / วิชาเอก</th>
-        <th class="num">รับ</th>
-        <th class="num">สมัคร</th>
-        <th class="num">ผ่าน</th>
-        <th class="num">คะแนนสูงสุด</th>
-        <th class="num">คะแนนต่ำสุด</th>
+        <th class="sortable" data-sort="year">ปี</th>
+        <th class="sortable" data-sort="สถาบัน">สถาบัน</th>
+        <th class="sortable" data-sort="วิทยาเขต">วิทยาเขต</th>
+        <th class="sortable" data-sort="คณะ">คณะ</th>
+        <th class="sortable" data-sort="หลักสูตร">หลักสูตร</th>
+        <th class="sortable" data-sort="สาขา/วิชาเอก">สาขา / วิชาเอก</th>
+        <th class="num sortable" data-sort="รับ">รับ</th>
+        <th class="num sortable" data-sort="สมัคร">สมัคร</th>
+        <th class="num sortable" data-sort="ผ่าน">ผ่าน</th>
+        <th class="num sortable" data-sort="คะแนนสูงสุด">คะแนนสูงสุด</th>
+        <th class="num sortable" data-sort="คะแนนต่ำสุด">คะแนนต่ำสุด</th>
       </tr>
     </thead>
     <tbody id="tbody">
@@ -297,6 +301,8 @@
 <script>
   const PER_PAGE = 50;
   let debounceTimer;
+  let sortCol = "";
+  let sortDir = "asc";
 
   document.getElementById("q").addEventListener("input", () => {
     clearTimeout(debounceTimer);
@@ -307,11 +313,35 @@
   });
   document.getElementById("year").addEventListener("change", () => search(1));
 
+  document.querySelectorAll("thead th.sortable").forEach(th => {
+    th.addEventListener("click", () => {
+      const col = th.dataset.sort;
+      if (sortCol === col) {
+        sortDir = sortDir === "asc" ? "desc" : "asc";
+      } else {
+        sortCol = col;
+        sortDir = "asc";
+      }
+      updateSortHeaders();
+      search(1);
+    });
+  });
+
+  function updateSortHeaders() {
+    document.querySelectorAll("thead th.sortable").forEach(th => {
+      th.classList.remove("sort-asc", "sort-desc");
+      if (th.dataset.sort === sortCol) {
+        th.classList.add(sortDir === "asc" ? "sort-asc" : "sort-desc");
+      }
+    });
+  }
+
   // ── fetch & render ──────────────────────────────────────────────────────────
   async function search(page) {
     const q    = document.getElementById("q").value.trim();
     const year = document.getElementById("year").value;
-    const url  = `/api/search?q=${encodeURIComponent(q)}&year=${encodeURIComponent(year)}&page=${page}&per_page=${PER_PAGE}`;
+    let url  = `/api/search?q=${encodeURIComponent(q)}&year=${encodeURIComponent(year)}&page=${page}&per_page=${PER_PAGE}`;
+    if (sortCol) url += `&sort=${encodeURIComponent(sortCol)}&dir=${sortDir}`;
 
     setLoading();
 

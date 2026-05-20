@@ -19,6 +19,10 @@ COMPARE_HTML_PATH = os.path.join(WORK_DIR, "compare.html")
 PORT              = int(os.environ.get("PORT", 8000))
 
 SEARCH_COLS = ['"สถาบัน"', '"วิทยาเขต"', '"คณะ"', '"หลักสูตร"', '"สาขา/วิชาเอก"']
+SORT_COLS_SEARCH = {
+    "year", "สถาบัน", "วิทยาเขต", "คณะ", "หลักสูตร", "สาขา/วิชาเอก",
+    "รับ", "สมัคร", "ผ่าน", "คะแนนสูงสุด", "คะแนนต่ำสุด",
+}
 
 
 def _yr(row):
@@ -93,6 +97,16 @@ class Handler(BaseHTTPRequestHandler):
 
         where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
 
+        sort_col = params.get("sort", [""])[0].strip()
+        sort_dir = params.get("dir",  ["asc"])[0].strip()
+        if sort_col in SORT_COLS_SEARCH:
+            direction = "DESC" if sort_dir == "desc" else "ASC"
+            _tie = [c for c in ['"\u0e2a\u0e16\u0e32\u0e1a\u0e31\u0e19"', '"\u0e04\u0e13\u0e30"', '"\u0e2b\u0e25\u0e31\u0e01\u0e2a\u0e39\u0e15\u0e23"'] if c != f'"{sort_col}"']
+            tb   = ", ".join(f'{c} ASC NULLS LAST' for c in _tie)
+            order_by = f'ORDER BY "{sort_col}" {direction} NULLS LAST' + (f', {tb}' if tb else '')
+        else:
+            order_by = ""
+
         try:
             conn = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True)
             conn.row_factory = sqlite3.Row
@@ -102,7 +116,7 @@ class Handler(BaseHTTPRequestHandler):
             total = cur.fetchone()[0]
 
             cur.execute(
-                f'SELECT * FROM "tcas_results" {where} LIMIT ? OFFSET ?',
+                f'SELECT * FROM "tcas_results" {where} {order_by} LIMIT ? OFFSET ?',
                 args + [per_page, offset],
             )
             rows = [dict(r) for r in cur.fetchall()]
@@ -189,6 +203,37 @@ class Handler(BaseHTTPRequestHandler):
                 }
                 for code, g in ((c, groups[c]) for c in order)
             ]
+
+            sort_col = params.get("sort", [""])[0].strip()
+            sort_dir = params.get("dir",  ["asc"])[0].strip()
+            if sort_col:
+                reverse = (sort_dir == "desc")
+                def _raw_key(p, _col=sort_col):
+                    y68, y69 = p["y68"], p["y69"]
+                    if _col == "\u0e2a\u0e16\u0e32\u0e1a\u0e31\u0e19":    return p.get("\u0e2a\u0e16\u0e32\u0e1a\u0e31\u0e19") or ""
+                    if _col == "\u0e27\u0e34\u0e17\u0e22\u0e32\u0e40\u0e02\u0e15":  return p.get("\u0e27\u0e34\u0e17\u0e22\u0e32\u0e40\u0e02\u0e15") or ""
+                    if _col == "\u0e04\u0e13\u0e30":       return p.get("\u0e04\u0e13\u0e30") or ""
+                    if _col == "\u0e2b\u0e25\u0e31\u0e01\u0e2a\u0e39\u0e15\u0e23":   return p.get("\u0e2b\u0e25\u0e31\u0e01\u0e2a\u0e39\u0e15\u0e23") or ""
+                    if _col == "\u0e23\u0e31\u0e1a68"    and y68: return y68.get("\u0e23\u0e31\u0e1a")
+                    if _col == "\u0e2a\u0e39\u0e07\u0e2a\u0e38\u0e1468" and y68: return y68.get("\u0e2a\u0e39\u0e07\u0e2a\u0e38\u0e14")
+                    if _col == "\u0e15\u0e48\u0e33\u0e2a\u0e38\u0e1468" and y68: return y68.get("\u0e15\u0e48\u0e33\u0e2a\u0e38\u0e14")
+                    if _col == "\u0e23\u0e31\u0e1a69"    and y69: return y69.get("\u0e23\u0e31\u0e1a")
+                    if _col == "\u0e2a\u0e39\u0e07\u0e2a\u0e38\u0e1469" and y69: return y69.get("\u0e2a\u0e39\u0e07\u0e2a\u0e38\u0e14")
+                    if _col == "\u0e15\u0e48\u0e33\u0e2a\u0e38\u0e1469" and y69: return y69.get("\u0e15\u0e48\u0e33\u0e2a\u0e38\u0e14")
+                    if _col == "delta":
+                        if y68 and y69 and y68.get("\u0e15\u0e48\u0e33\u0e2a\u0e38\u0e14") is not None and y69.get("\u0e15\u0e48\u0e33\u0e2a\u0e38\u0e14") is not None:
+                            return y69["\u0e15\u0e48\u0e33\u0e2a\u0e38\u0e14"] - y68["\u0e15\u0e48\u0e33\u0e2a\u0e38\u0e14"]
+                    return None
+                def _tie_key(p):
+                    return (p.get("\u0e2a\u0e16\u0e32\u0e1a\u0e31\u0e19") or "",
+                            p.get("\u0e04\u0e13\u0e30") or "",
+                            p.get("\u0e2b\u0e25\u0e31\u0e01\u0e2a\u0e39\u0e15\u0e23") or "")
+                keyed     = [(p, _raw_key(p)) for p in pairs]
+                non_nones = [(p, v) for p, v in keyed if v is not None]
+                nones     = sorted([p for p, v in keyed if v is None], key=_tie_key)
+                non_nones.sort(key=lambda x: _tie_key(x[0]))        # tie-break asc (stable)
+                non_nones.sort(key=lambda x: x[1], reverse=reverse) # primary sort (stable)
+                pairs = [p for p, _ in non_nones] + nones
 
             total  = len(pairs)
             offset = (page - 1) * per_page
