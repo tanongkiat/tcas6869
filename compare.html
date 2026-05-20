@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>เปรียบเทียบ TCAS 2568 vs 2569</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Sarabun', 'Tahoma', system-ui, sans-serif;
+      background: #f0f2f5;
+      color: #1a1a2e;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: linear-gradient(135deg, #1a237e 0%, #283593 100%);
+      color: #fff;
+      padding: 20px 28px 14px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.2);
+    }
+    header h1 { font-size: 1.45rem; font-weight: 600; }
+    header p  { font-size: .9rem; opacity: .72; margin-top: 3px; }
+
+    /* ── Nav ── */
+    nav.page-nav {
+      background: #283593;
+      display: flex;
+      padding: 0 28px;
+      gap: 4px;
+    }
+    nav.page-nav a {
+      color: rgba(255,255,255,.7);
+      text-decoration: none;
+      padding: 10px 16px;
+      font-size: .9rem;
+      border-bottom: 3px solid transparent;
+      transition: color .15s, border-color .15s;
+    }
+    nav.page-nav a:hover   { color: #fff; }
+    nav.page-nav a.active  { color: #fff; border-bottom-color: #90caf9; font-weight: 600; }
+
+    /* ── Search / filter bar ── */
+    .search-bar {
+      background: #fff;
+      padding: 14px 28px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      border-bottom: 1px solid #dde1e7;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    }
+    .search-bar input[type="text"] {
+      flex: 1;
+      min-width: 240px;
+      padding: 9px 14px;
+      border: 1.5px solid #c5cae9;
+      border-radius: 7px;
+      font-family: inherit;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color .2s;
+    }
+    .search-bar input:focus { border-color: #3949ab; }
+    .btn-search {
+      padding: 9px 22px;
+      background: #1a237e;
+      color: #fff;
+      border: none;
+      border-radius: 7px;
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .btn-search:hover { background: #283593; }
+
+    /* filter tabs */
+    .filter-tabs {
+      display: flex;
+      gap: 6px;
+      padding: 10px 28px 4px;
+      flex-wrap: wrap;
+    }
+    .filter-tabs button {
+      padding: 5px 14px;
+      border: 1.5px solid #c5cae9;
+      border-radius: 99px;
+      background: #fff;
+      font-family: inherit;
+      font-size: .85rem;
+      cursor: pointer;
+      color: #444;
+      transition: background .15s, border-color .15s, color .15s;
+    }
+    .filter-tabs button.active {
+      background: #1a237e;
+      border-color: #1a237e;
+      color: #fff;
+    }
+    .filter-tabs button:hover:not(.active) { background: #e8eaf6; border-color: #9fa8da; }
+
+    /* ── Stats ── */
+    .stats {
+      padding: 6px 28px 10px;
+      font-size: .88rem;
+      color: #666;
+      min-height: 30px;
+    }
+
+    /* ── Table ── */
+    .table-wrap {
+      padding: 0 28px 28px;
+      overflow-x: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 1px 6px rgba(0,0,0,.09);
+      font-size: .855rem;
+    }
+
+    /* group header rows */
+    thead tr.top-head th {
+      background: #1a237e;
+      color: #fff;
+      padding: 9px 10px;
+      text-align: center;
+      font-weight: 600;
+      font-size: .85rem;
+      white-space: nowrap;
+      border: 1px solid rgba(255,255,255,.15);
+    }
+    thead tr.top-head th.info-head {
+      background: #283593;
+      text-align: left;
+    }
+    thead tr.sub-head th {
+      background: #e8eaf6;
+      color: #1a237e;
+      padding: 8px 10px;
+      text-align: right;
+      font-weight: 600;
+      white-space: nowrap;
+      border-bottom: 2px solid #c5cae9;
+    }
+    thead tr.sub-head th.left  { text-align: left; }
+    thead tr.sub-head th.delta { background: #f3e5f5; color: #6a1b9a; text-align: center; }
+
+    /* body */
+    tbody tr          { transition: background .1s; }
+    tbody tr:hover    { background: #f3f4fc; }
+    tbody tr.only-68  { background: #e3f2fd22; }
+    tbody tr.only-69  { background: #f3e5f522; }
+    tbody tr.hidden   { display: none; }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody td {
+      padding: 8px 10px;
+      border-bottom: 1px solid #eef0f6;
+      vertical-align: middle;
+    }
+    tbody td.info    { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    tbody td.num     { text-align: right; white-space: nowrap; }
+    tbody td.dim     { color: #ccc; text-align: right; }
+    tbody td.delta-up   { text-align: center; font-weight: 700; color: #2e7d32; white-space: nowrap; }
+    tbody td.delta-down { text-align: center; font-weight: 700; color: #b71c1c; white-space: nowrap; }
+    tbody td.delta-zero { text-align: center; color: #999; white-space: nowrap; }
+
+    /* year column bands */
+    .band-68 { background: #e3f2fd14; }
+    .band-69 { background: #f3e5f514; }
+
+    /* inline year badge */
+    .badge { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: .75rem; font-weight: 600; }
+    .badge-68 { background: #e3f2fd; color: #1565c0; }
+    .badge-69 { background: #f3e5f5; color: #6a1b9a; }
+    .badge-only { font-size: .7rem; margin-left: 4px; opacity: .7; }
+
+    /* ── Pagination ── */
+    .pagination {
+      display: flex;
+      gap: 5px;
+      padding: 14px 28px 20px;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .pagination button {
+      min-width: 36px;
+      padding: 6px 10px;
+      border: 1.5px solid #c5cae9;
+      border-radius: 6px;
+      background: #fff;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: .88rem;
+      color: #333;
+      transition: background .15s;
+    }
+    .pagination button.active   { background: #1a237e; color: #fff; border-color: #1a237e; }
+    .pagination button:disabled { opacity: .35; cursor: default; }
+    .pagination button:hover:not(:disabled):not(.active) { background: #e8eaf6; }
+    .pagination .ellipsis { color: #aaa; padding: 0 4px; }
+
+    /* ── States ── */
+    .state-row td { padding: 48px; text-align: center; color: #aaa; font-size: 1rem; }
+
+    @media (max-width: 640px) {
+      header, nav.page-nav, .search-bar, .filter-tabs, .stats, .pagination { padding-left: 12px; padding-right: 12px; }
+      .table-wrap { padding: 0 6px 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>เปรียบเทียบผลการรับสมัคร TCAS 2568 vs 2569</h1>
+  <p>เทียบ จำนวนรับ · คะแนนสูงสุด · คะแนนต่ำสุด รายหลักสูตร</p>
+</header>
+
+<nav class="page-nav">
+  <a href="/">ค้นหาทั้งหมด</a>
+  <a href="/compare" class="active">เปรียบเทียบ 2568 vs 2569</a>
+</nav>
+
+<div class="search-bar">
+  <input type="text" id="q"
+         placeholder="ค้นหา เช่น: กลุ่มสถาบันแพทย แพทยศาสตร์  (เว้นวรรค = AND)" />
+  <button class="btn-search" onclick="doSearch(1)">ค้นหา</button>
+</div>
+
+<div class="filter-tabs">
+  <button class="active" data-filter="all"   onclick="setFilter('all',   this)">ทั้งหมด</button>
+  <button               data-filter="both"   onclick="setFilter('both',  this)">มีทั้ง 2 ปี</button>
+  <button               data-filter="only68" onclick="setFilter('only68',this)">เฉพาะ 2568</button>
+  <button               data-filter="only69" onclick="setFilter('only69',this)">เฉพาะ 2569</button>
+</div>
+
+<div class="stats" id="stats"></div>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr class="top-head">
+        <th class="info-head" colspan="4">หลักสูตร</th>
+        <th colspan="3">ปี 2568</th>
+        <th colspan="3">ปี 2569</th>
+        <th>Δ ต่ำสุด</th>
+      </tr>
+      <tr class="sub-head">
+        <th class="left">สถาบัน</th>
+        <th class="left">วิทยาเขต</th>
+        <th class="left">คณะ</th>
+        <th class="left">หลักสูตร / สาขา</th>
+        <!-- 2568 -->
+        <th class="band-68">รับ</th>
+        <th class="band-68">สูงสุด</th>
+        <th class="band-68">ต่ำสุด</th>
+        <!-- 2569 -->
+        <th class="band-69">รับ</th>
+        <th class="band-69">สูงสุด</th>
+        <th class="band-69">ต่ำสุด</th>
+        <!-- delta -->
+        <th class="delta">69 − 68</th>
+      </tr>
+    </thead>
+    <tbody id="tbody">
+      <tr class="state-row"><td colspan="11">กำลังโหลด…</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="pagination" id="pagination"></div>
+
+<script>
+  const PER_PAGE = 100;
+  let currentFilter = "all";
+  let debounceTimer;
+
+  document.getElementById("q").addEventListener("input", () => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => doSearch(1), 380);
+  });
+  document.getElementById("q").addEventListener("keydown", e => {
+    if (e.key === "Enter") { clearTimeout(debounceTimer); doSearch(1); }
+  });
+
+  function setFilter(f, btn) {
+    currentFilter = f;
+    document.querySelectorAll(".filter-tabs button").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    applyFilter();
+    updateStats();
+  }
+
+  function applyFilter() {
+    document.querySelectorAll("#tbody tr[data-has68]").forEach(tr => {
+      const has68 = tr.dataset.has68 === "1";
+      const has69 = tr.dataset.has69 === "1";
+      let show = true;
+      if (currentFilter === "both"   && !(has68 && has69))  show = false;
+      if (currentFilter === "only68" && !(has68 && !has69)) show = false;
+      if (currentFilter === "only69" && !(!has68 && has69)) show = false;
+      tr.classList.toggle("hidden", !show);
+    });
+  }
+
+  function updateStats() {
+    const total   = document.querySelectorAll("#tbody tr[data-has68]").length;
+    const visible = document.querySelectorAll("#tbody tr[data-has68]:not(.hidden)").length;
+    const s = document.getElementById("stats");
+    if (total === 0) { s.textContent = ""; return; }
+    s.textContent = visible === total
+      ? `พบ ${total.toLocaleString()} หลักสูตร`
+      : `แสดง ${visible.toLocaleString()} จาก ${total.toLocaleString()} หลักสูตร`;
+  }
+
+  // ── Fetch ──────────────────────────────────────────────────────────────────
+  async function doSearch(page) {
+    const q   = document.getElementById("q").value.trim();
+    const url = `/api/compare?q=${encodeURIComponent(q)}&page=${page}&per_page=${PER_PAGE}`;
+
+    document.getElementById("tbody").innerHTML =
+      `<tr class="state-row"><td colspan="11">กำลังค้นหา…</td></tr>`;
+    document.getElementById("stats").textContent = "";
+    document.getElementById("pagination").innerHTML = "";
+
+    try {
+      const res  = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      renderTable(data.rows);
+      renderPagination(data.total, page);
+      applyFilter();
+      updateStats();
+    } catch (err) {
+      document.getElementById("tbody").innerHTML =
+        `<tr class="state-row"><td colspan="11">เกิดข้อผิดพลาด: ${esc(err.message)}</td></tr>`;
+    }
+  }
+
+  // ── Render table ───────────────────────────────────────────────────────────
+  function renderTable(rows) {
+    const tbody = document.getElementById("tbody");
+    if (!rows.length) {
+      tbody.innerHTML = `<tr class="state-row"><td colspan="11">ไม่พบข้อมูลที่ตรงกับการค้นหา</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = rows.map(r => {
+      const has68  = r.y68 !== null;
+      const has69  = r.y69 !== null;
+      const trCls  = !has68 ? "only-69" : !has69 ? "only-68" : "";
+
+      // program label
+      const sาขา = r["สาขา/วิชาเอก"];
+      const prog  = sาขา && sาขา !== r["หลักสูตร"]
+        ? `${txt(r["หลักสูตร"])} <span style="color:#888;font-size:.82em">${esc(sาขา)}</span>`
+        : txt(r["หลักสูตร"]);
+
+      // only-year badge
+      const onlyBadge = !has68
+        ? `<span class="badge badge-69 badge-only">เฉพาะ 2569</span>`
+        : !has69
+        ? `<span class="badge badge-68 badge-only">เฉพาะ 2568</span>`
+        : "";
+
+      // 2568 cells
+      const c68_รับ = has68 ? `<td class="num band-68">${num(r.y68.รับ)}</td>`
+                             : `<td class="dim band-68">—</td>`;
+      const c68_hi  = has68 ? `<td class="num band-68">${score(r.y68.สูงสุด)}</td>`
+                             : `<td class="dim band-68">—</td>`;
+      const c68_lo  = has68 ? `<td class="num band-68">${score(r.y68.ต่ำสุด)}</td>`
+                             : `<td class="dim band-68">—</td>`;
+
+      // 2569 cells
+      const c69_รับ = has69 ? `<td class="num band-69">${num(r.y69.รับ)}</td>`
+                             : `<td class="dim band-69">—</td>`;
+      const c69_hi  = has69 ? `<td class="num band-69">${score(r.y69.สูงสุด)}</td>`
+                             : `<td class="dim band-69">—</td>`;
+      const c69_lo  = has69 ? `<td class="num band-69">${score(r.y69.ต่ำสุด)}</td>`
+                             : `<td class="dim band-69">—</td>`;
+
+      // delta cell
+      let deltaTd = `<td class="delta-zero">—</td>`;
+      if (has68 && has69 && r.y68.ต่ำสุด != null && r.y69.ต่ำสุด != null) {
+        const d = r.y69.ต่ำสุด - r.y68.ต่ำสุด;
+        const sign = d > 0 ? "+" : "";
+        const cls  = d > 0.005 ? "delta-up" : d < -0.005 ? "delta-down" : "delta-zero";
+        const arrow = d > 0.005 ? " ▲" : d < -0.005 ? " ▼" : "";
+        deltaTd = `<td class="${cls}">${sign}${d.toFixed(2)}${arrow}</td>`;
+      }
+
+      return `<tr class="${trCls}" data-has68="${has68?1:0}" data-has69="${has69?1:0}">
+        <td class="info" title="${esc(r["สถาบัน"])}">${txt(r["สถาบัน"])}</td>
+        <td class="info" title="${esc(r["วิทยาเขต"])}">${txt(r["วิทยาเขต"])}</td>
+        <td class="info" title="${esc(r["คณะ"])}">${txt(r["คณะ"])}${onlyBadge}</td>
+        <td class="info" title="${esc(r["หลักสูตร"])}">${prog}</td>
+        ${c68_รับ}${c68_hi}${c68_lo}
+        ${c69_รับ}${c69_hi}${c69_lo}
+        ${deltaTd}
+      </tr>`;
+    }).join("");
+  }
+
+  // ── Pagination ─────────────────────────────────────────────────────────────
+  function renderPagination(total, page) {
+    const totalPages = Math.ceil(total / PER_PAGE);
+    const el = document.getElementById("pagination");
+    if (totalPages <= 1) { el.innerHTML = ""; return; }
+
+    const WINDOW = 2;
+    const s = Math.max(1, page - WINDOW);
+    const e = Math.min(totalPages, page + WINDOW);
+    let html = btn("‹", page - 1, page === 1);
+    if (s > 1)              html += btn("1", 1);
+    if (s > 2)              html += `<span class="ellipsis">…</span>`;
+    for (let p = s; p <= e; p++) html += btn(p, p, false, p === page);
+    if (e < totalPages - 1) html += `<span class="ellipsis">…</span>`;
+    if (e < totalPages)     html += btn(totalPages, totalPages);
+    html += btn("›", page + 1, page === totalPages);
+    el.innerHTML = html;
+  }
+
+  function btn(label, page, disabled = false, active = false) {
+    return `<button class="${active ? "active" : ""}" ${disabled ? "disabled" : ""} onclick="doSearch(${page})">${label}</button>`;
+  }
+
+  // ── Formatters ─────────────────────────────────────────────────────────────
+  function esc(v)   { return v == null ? "" : String(v).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+  function txt(v)   { return v == null || v === "" ? `<span style="color:#ccc">—</span>` : esc(v); }
+  function num(v)   { return v == null ? `<span style="color:#ccc">—</span>` : Number(v).toLocaleString(); }
+  function score(v) { return v == null ? `<span style="color:#ccc">—</span>` : Number(v).toFixed(2); }
+
+  // Initial load — pre-fill กลุ่มสถาบันแพทย
+  doSearch(1);
+</script>
+</body>
+</html>

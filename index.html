@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ผลการรับสมัคร TCAS</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Sarabun', 'Tahoma', system-ui, sans-serif;
+      background: #f0f2f5;
+      color: #1a1a2e;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: linear-gradient(135deg, #1a237e 0%, #283593 100%);
+      color: #fff;
+      padding: 20px 28px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.2);
+    }
+    header h1 { font-size: 1.45rem; font-weight: 600; letter-spacing: .01em; }
+    header p  { font-size: .9rem; opacity: .72; margin-top: 3px; }
+
+    /* ── Search bar ── */
+    .search-bar {
+      background: #fff;
+      padding: 14px 28px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      border-bottom: 1px solid #dde1e7;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    }
+    .search-bar input[type="text"] {
+      flex: 1;
+      min-width: 220px;
+      padding: 9px 14px;
+      border: 1.5px solid #c5cae9;
+      border-radius: 7px;
+      font-family: inherit;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color .2s;
+    }
+    .search-bar input[type="text"]:focus { border-color: #3949ab; }
+    .search-bar select {
+      padding: 9px 12px;
+      border: 1.5px solid #c5cae9;
+      border-radius: 7px;
+      font-family: inherit;
+      font-size: 1rem;
+      background: #fff;
+      outline: none;
+      cursor: pointer;
+    }
+    .btn-search {
+      padding: 9px 22px;
+      background: #1a237e;
+      color: #fff;
+      border: none;
+      border-radius: 7px;
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .btn-search:hover { background: #283593; }
+
+    /* ── Stats bar ── */
+    .stats {
+      padding: 10px 28px;
+      font-size: .88rem;
+      color: #666;
+      min-height: 34px;
+    }
+
+    /* ── Table ── */
+    .table-wrap {
+      padding: 0 28px 28px;
+      overflow-x: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 1px 6px rgba(0,0,0,.09);
+      font-size: .875rem;
+    }
+    thead th {
+      background: #e8eaf6;
+      color: #1a237e;
+      padding: 11px 12px;
+      text-align: left;
+      white-space: nowrap;
+      font-weight: 600;
+      border-bottom: 2px solid #c5cae9;
+      user-select: none;
+    }
+    thead th.num { text-align: right; }
+    tbody tr { transition: background .1s; }
+    tbody tr:hover { background: #f3f4fc; }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody td {
+      padding: 9px 12px;
+      border-bottom: 1px solid #eef0f6;
+      vertical-align: middle;
+      max-width: 220px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    tbody td.num  { text-align: right; max-width: none; white-space: nowrap; }
+    tbody td.year { text-align: center; max-width: none; white-space: nowrap; }
+
+    /* year badges */
+    .badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 99px;
+      font-size: .8rem;
+      font-weight: 600;
+    }
+    .badge-68 { background: #e3f2fd; color: #1565c0; }
+    .badge-69 { background: #f3e5f5; color: #6a1b9a; }
+
+    /* null / missing */
+    .dim { color: #bbb; }
+
+    /* score highlight */
+    .score-high { color: #2e7d32; font-weight: 600; }
+    .score-low  { color: #b71c1c; font-weight: 600; }
+
+    /* ── Pagination ── */
+    .pagination {
+      display: flex;
+      gap: 5px;
+      padding: 14px 28px 20px;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .pagination button {
+      min-width: 36px;
+      padding: 6px 10px;
+      border: 1.5px solid #c5cae9;
+      border-radius: 6px;
+      background: #fff;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: .88rem;
+      color: #333;
+      transition: background .15s, border-color .15s;
+    }
+    .pagination button.active {
+      background: #1a237e;
+      color: #fff;
+      border-color: #1a237e;
+    }
+    .pagination button:disabled  { opacity: .35; cursor: default; }
+    .pagination button:hover:not(:disabled):not(.active) {
+      background: #e8eaf6;
+      border-color: #9fa8da;
+    }
+    .pagination .ellipsis { color: #aaa; padding: 0 4px; }
+
+    /* ── State rows ── */
+    .state-row td {
+      padding: 48px;
+      text-align: center;
+      color: #aaa;
+      font-size: 1rem;
+    }
+
+    @media (max-width: 640px) {
+      header { padding: 14px 16px; }
+      .search-bar { padding: 12px 16px; }
+      .stats       { padding: 8px 16px; }
+      .table-wrap  { padding: 0 8px 20px; }
+      .pagination  { padding: 12px 8px 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>ผลการรับสมัคร TCAS — รอบ 3</h1>
+  <p>ข้อมูลปีการศึกษา 2568 และ 2569</p>
+</header>
+
+<div class="search-bar">
+  <input type="text" id="q"
+         placeholder="ค้นหา เช่น: กลุ่มสถาบันแพทย แพทยศาสตร์  (เว้นวรรค = AND)" />
+  <select id="year">
+    <option value="">ทุกปี</option>
+    <option value="2568">2568</option>
+    <option value="2569">2569</option>
+  </select>
+  <button class="btn-search" onclick="search(1)">ค้นหา</button>
+</div>
+
+<div class="stats" id="stats"></div>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>ปี</th>
+        <th>สถาบัน</th>
+        <th>วิทยาเขต</th>
+        <th>คณะ</th>
+        <th>หลักสูตร</th>
+        <th>สาขา / วิชาเอก</th>
+        <th class="num">รับ</th>
+        <th class="num">สมัคร</th>
+        <th class="num">ผ่าน</th>
+        <th class="num">คะแนนสูงสุด</th>
+        <th class="num">คะแนนต่ำสุด</th>
+      </tr>
+    </thead>
+    <tbody id="tbody">
+      <tr class="state-row"><td colspan="11">กำลังโหลด…</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="pagination" id="pagination"></div>
+
+<script>
+  const PER_PAGE = 50;
+  let debounceTimer;
+
+  document.getElementById("q").addEventListener("input", () => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => search(1), 380);
+  });
+  document.getElementById("q").addEventListener("keydown", e => {
+    if (e.key === "Enter") { clearTimeout(debounceTimer); search(1); }
+  });
+  document.getElementById("year").addEventListener("change", () => search(1));
+
+  // ── fetch & render ──────────────────────────────────────────────────────────
+  async function search(page) {
+    const q    = document.getElementById("q").value.trim();
+    const year = document.getElementById("year").value;
+    const url  = `/api/search?q=${encodeURIComponent(q)}&year=${encodeURIComponent(year)}&page=${page}&per_page=${PER_PAGE}`;
+
+    setLoading();
+
+    try {
+      const res  = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      renderTable(data.rows);
+      renderPagination(data.total, page);
+      renderStats(data.total, page, data.rows.length);
+    } catch (err) {
+      document.getElementById("tbody").innerHTML =
+        `<tr class="state-row"><td colspan="11">เกิดข้อผิดพลาด: ${esc(err.message)}</td></tr>`;
+      document.getElementById("stats").textContent = "";
+      document.getElementById("pagination").innerHTML = "";
+    }
+  }
+
+  function setLoading() {
+    document.getElementById("tbody").innerHTML =
+      `<tr class="state-row"><td colspan="11">กำลังค้นหา…</td></tr>`;
+    document.getElementById("stats").textContent = "";
+    document.getElementById("pagination").innerHTML = "";
+  }
+
+  // ── table ───────────────────────────────────────────────────────────────────
+  function renderTable(rows) {
+    const tbody = document.getElementById("tbody");
+    if (!rows.length) {
+      tbody.innerHTML = `<tr class="state-row"><td colspan="11">ไม่พบข้อมูลที่ตรงกับการค้นหา</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = rows.map(r => {
+      const year  = r["year"];
+      const badge = year === 2568
+        ? `<span class="badge badge-68">2568</span>`
+        : `<span class="badge badge-69">2569</span>`;
+      return `<tr>
+        <td class="year">${badge}</td>
+        <td title="${esc(r["สถาบัน"])}">${txt(r["สถาบัน"])}</td>
+        <td title="${esc(r["วิทยาเขต"])}">${txt(r["วิทยาเขต"])}</td>
+        <td title="${esc(r["คณะ"])}">${txt(r["คณะ"])}</td>
+        <td title="${esc(r["หลักสูตร"])}">${txt(r["หลักสูตร"])}</td>
+        <td title="${esc(r["สาขา/วิชาเอก"])}">${txt(r["สาขา/วิชาเอก"])}</td>
+        <td class="num">${num(r["รับ"])}</td>
+        <td class="num">${num(r["สมัคร"])}</td>
+        <td class="num">${num(r["ผ่าน"])}</td>
+        <td class="num score-high">${score(r["คะแนนสูงสุด"])}</td>
+        <td class="num score-low">${score(r["คะแนนต่ำสุด"])}</td>
+      </tr>`;
+    }).join("");
+  }
+
+  // ── pagination ──────────────────────────────────────────────────────────────
+  function renderPagination(total, page) {
+    const totalPages = Math.ceil(total / PER_PAGE);
+    const el = document.getElementById("pagination");
+    if (totalPages <= 1) { el.innerHTML = ""; return; }
+
+    const WINDOW = 2;
+    const s = Math.max(1, page - WINDOW);
+    const e = Math.min(totalPages, page + WINDOW);
+
+    let html = btn("‹", page - 1, page === 1);
+
+    if (s > 1)               html += btn("1", 1);
+    if (s > 2)               html += `<span class="ellipsis">…</span>`;
+    for (let p = s; p <= e; p++) html += btn(p, p, false, p === page);
+    if (e < totalPages - 1)  html += `<span class="ellipsis">…</span>`;
+    if (e < totalPages)      html += btn(totalPages, totalPages);
+
+    html += btn("›", page + 1, page === totalPages);
+    el.innerHTML = html;
+  }
+
+  function btn(label, page, disabled = false, active = false) {
+    const cls = active ? " active" : "";
+    return `<button class="${cls}" ${disabled ? "disabled" : ""} onclick="search(${page})">${label}</button>`;
+  }
+
+  // ── stats ───────────────────────────────────────────────────────────────────
+  function renderStats(total, page, count) {
+    const start = (page - 1) * PER_PAGE + 1;
+    const end   = start + count - 1;
+    document.getElementById("stats").textContent = total > 0
+      ? `พบ ${total.toLocaleString()} รายการ  ·  แสดง ${start.toLocaleString()}–${end.toLocaleString()}`
+      : "ไม่พบข้อมูล";
+  }
+
+  // ── formatters ──────────────────────────────────────────────────────────────
+  function esc(v)   { return v == null ? "" : String(v).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+  function txt(v)   { return v == null || v === "" ? `<span class="dim">—</span>` : esc(v); }
+  function num(v)   { return v == null ? `<span class="dim">—</span>` : Number(v).toLocaleString(); }
+  function score(v) { return v == null ? `<span class="dim">—</span>` : Number(v).toFixed(2); }
+
+  // Initial load
+  search(1);
+</script>
+</body>
+</html>

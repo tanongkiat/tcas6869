@@ -1,0 +1,13 @@
+# PDF source files (large, not needed in repo)
+*.pdf
+
+# Backup CSV
+*.bak.csv
+
+# macOS metadata
+.DS_Store
+__MACOSX/
+
+# Python cache
+__pycache__/
+*.pyc
