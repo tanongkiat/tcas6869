@@ -16,7 +16,7 @@ WORK_DIR          = os.path.dirname(os.path.abspath(__file__))
 DB_PATH           = os.path.join(WORK_DIR, "tcas_results.db")
 HTML_PATH         = os.path.join(WORK_DIR, "index.html")
 COMPARE_HTML_PATH = os.path.join(WORK_DIR, "compare.html")
-PORT              = 8000
+PORT              = int(os.environ.get("PORT", 8000))
 
 SEARCH_COLS = ['"สถาบัน"', '"วิทยาเขต"', '"คณะ"', '"หลักสูตร"', '"สาขา/วิชาเอก"']
 
@@ -213,8 +213,8 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     if not os.path.exists(DB_PATH):
         raise SystemExit(f"DB not found: {DB_PATH}\nRun csv_to_sqlite.py first.")
-    print(f"Serving on http://localhost:{PORT}/")
-    HTTPServer(("127.0.0.1", PORT), Handler).serve_forever()
+    print(f"Serving on http://0.0.0.0:{PORT}/")
+    HTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
 
 
 if __name__ == "__main__":
