@@ -182,6 +182,57 @@
       font-size: 1rem;
     }
 
+    /* ── Checkbox col ── */
+    thead th.cb-col, tbody td.cb-col {
+      width: 36px; text-align: center; padding: 9px 6px;
+      max-width: none; white-space: nowrap;
+    }
+    input[type=checkbox] { width: 15px; height: 15px; cursor: pointer; accent-color: #1a237e; }
+    tbody tr.selected { background: #e8eaf6 !important; }
+
+    /* ── Selection bar ── */
+    #sel-bar {
+      display: none;
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1a237e;
+      color: #fff;
+      padding: 12px 22px;
+      border-radius: 40px;
+      box-shadow: 0 4px 18px rgba(0,0,0,.3);
+      align-items: center;
+      gap: 14px;
+      font-size: .95rem;
+      z-index: 100;
+      white-space: nowrap;
+    }
+    #sel-bar.visible { display: flex; }
+    #sel-bar .sel-count { font-weight: 600; }
+    #btn-compare {
+      background: #fff;
+      color: #1a237e;
+      border: none;
+      border-radius: 20px;
+      padding: 6px 18px;
+      font-family: inherit;
+      font-size: .9rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    #btn-compare:hover { background: #e8eaf6; }
+    #btn-clear {
+      background: transparent;
+      color: rgba(255,255,255,.7);
+      border: none;
+      font-size: 1.1rem;
+      cursor: pointer;
+      padding: 0 4px;
+      line-height: 1;
+    }
+    #btn-clear:hover { color: #fff; }
+
     @media (max-width: 640px) {
       header { padding: 14px 16px; }
       .search-bar { padding: 12px 16px; }
@@ -211,10 +262,17 @@
 
 <div class="stats" id="stats"></div>
 
+<div id="sel-bar">
+  <span class="sel-count"><span id="sel-count-num">0</span> รายการที่เลือก</span>
+  <button id="btn-compare" onclick="openCompare()">เปรียบเทียบ 2568 vs 2569 ▶</button>
+  <button id="btn-clear" onclick="clearSelection()" title="ยกเลิกการเลือก">✕</button>
+</div>
+
 <div class="table-wrap">
   <table>
     <thead>
       <tr>
+        <th class="cb-col"><input type="checkbox" id="chk-all" title="เลือกทั้งหมดในหน้านี้" onchange="toggleAll(this)"></th>
         <th>ปี</th>
         <th>สถาบัน</th>
         <th>วิทยาเขต</th>
@@ -229,7 +287,7 @@
       </tr>
     </thead>
     <tbody id="tbody">
-      <tr class="state-row"><td colspan="11">กำลังโหลด…</td></tr>
+      <tr class="state-row"><td colspan="12">กำลังโหลด…</td></tr>
     </tbody>
   </table>
 </div>
@@ -266,7 +324,7 @@
       renderStats(data.total, page, data.rows.length);
     } catch (err) {
       document.getElementById("tbody").innerHTML =
-        `<tr class="state-row"><td colspan="11">เกิดข้อผิดพลาด: ${esc(err.message)}</td></tr>`;
+        `<tr class="state-row"><td colspan="12">เกิดข้อผิดพลาด: ${esc(err.message)}</td></tr>`;
       document.getElementById("stats").textContent = "";
       document.getElementById("pagination").innerHTML = "";
     }
@@ -274,24 +332,70 @@
 
   function setLoading() {
     document.getElementById("tbody").innerHTML =
-      `<tr class="state-row"><td colspan="11">กำลังค้นหา…</td></tr>`;
+      `<tr class="state-row"><td colspan="12">กำลังค้นหา…</td></tr>`;
     document.getElementById("stats").textContent = "";
     document.getElementById("pagination").innerHTML = "";
+  }
+
+  // ── selection state ─────────────────────────────────────────────────────────
+  const selected = new Set(); // stores รหัสหลักสูตร values
+
+  function updateSelBar() {
+    const bar = document.getElementById("sel-bar");
+    document.getElementById("sel-count-num").textContent = selected.size;
+    bar.classList.toggle("visible", selected.size > 0);
+  }
+
+  function toggleRow(code, checked, tr) {
+    if (checked) selected.add(code); else selected.delete(code);
+    tr.classList.toggle("selected", checked);
+    updateSelBar();
+  }
+
+  function toggleAll(chk) {
+    document.querySelectorAll("tbody input[type=checkbox]").forEach(cb => {
+      if (cb.checked !== chk.checked) cb.click();
+    });
+  }
+
+  function clearSelection() {
+    selected.clear();
+    document.querySelectorAll("tbody input[type=checkbox]").forEach(cb => {
+      cb.checked = false;
+      cb.closest("tr").classList.remove("selected");
+    });
+    const ca = document.getElementById("chk-all");
+    if (ca) ca.checked = false;
+    updateSelBar();
+  }
+
+  function openCompare() {
+    if (!selected.size) return;
+    const codes = [...selected].join(",");
+    window.location.href = `/compare?codes=${encodeURIComponent(codes)}`;
   }
 
   // ── table ───────────────────────────────────────────────────────────────────
   function renderTable(rows) {
     const tbody = document.getElementById("tbody");
     if (!rows.length) {
-      tbody.innerHTML = `<tr class="state-row"><td colspan="11">ไม่พบข้อมูลที่ตรงกับการค้นหา</td></tr>`;
+      tbody.innerHTML = `<tr class="state-row"><td colspan="12">ไม่พบข้อมูลที่ตรงกับการค้นหา</td></tr>`;
       return;
     }
+    // Restore check-all state
+    const ca = document.getElementById("chk-all");
+    if (ca) ca.checked = false;
+
     tbody.innerHTML = rows.map(r => {
+      const code  = esc(r["รหัสหลักสูตร"] || "");
       const year  = r["year"];
+      const isSel = selected.has(r["รหัสหลักสูตร"]);
       const badge = year === 2568
         ? `<span class="badge badge-68">2568</span>`
         : `<span class="badge badge-69">2569</span>`;
-      return `<tr>
+      return `<tr class="${isSel ? 'selected' : ''}" data-code="${code}">
+        <td class="cb-col"><input type="checkbox" ${isSel ? 'checked' : ''}
+          onchange="toggleRow('${code}', this.checked, this.closest('tr'))"></td>
         <td class="year">${badge}</td>
         <td title="${esc(r["สถาบัน"])}">${txt(r["สถาบัน"])}</td>
         <td title="${esc(r["วิทยาเขต"])}">${txt(r["วิทยาเขต"])}</td>

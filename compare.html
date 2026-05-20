@@ -327,9 +327,21 @@
   }
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
+  const URL_CODES = new URLSearchParams(window.location.search).get("codes") || "";
+
+  // If arrived with ?codes=..., show a banner and disable the search box
+  if (URL_CODES) {
+    const codeList = URL_CODES.split(",").filter(Boolean);
+    const banner = document.createElement("div");
+    banner.style.cssText = "background:#e8eaf6;padding:10px 28px;font-size:.88rem;color:#1a237e;border-bottom:1px solid #c5cae9";
+    banner.innerHTML = `เปรียบเทียบหลักสูตรที่เลือก <strong>${codeList.length} รายการ</strong> &nbsp;·&nbsp; <a href="/compare" style="color:#1a237e">แสดงทั้งหมด</a> &nbsp;·&nbsp; <a href="/" style="color:#1a237e">← กลับค้นหา</a>`;
+    document.querySelector(".search-bar").after(banner);
+  }
+
   async function doSearch(page) {
     const q   = document.getElementById("q").value.trim();
-    const url = `/api/compare?q=${encodeURIComponent(q)}&page=${page}&per_page=${PER_PAGE}`;
+    let url = `/api/compare?q=${encodeURIComponent(q)}&page=${page}&per_page=${PER_PAGE}`;
+    if (URL_CODES) url += `&codes=${encodeURIComponent(URL_CODES)}`;
 
     document.getElementById("tbody").innerHTML =
       `<tr class="state-row"><td colspan="11">กำลังค้นหา…</td></tr>`;

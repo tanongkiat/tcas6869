@@ -135,6 +135,8 @@ class Handler(BaseHTTPRequestHandler):
         except ValueError:
             per_page = 100
 
+        codes_raw = params.get("codes", [""])[0].strip()
+
         conditions, args = [], []
         for token in q.split():
             like = f"%{token}%"
@@ -142,6 +144,12 @@ class Handler(BaseHTTPRequestHandler):
                 "(" + " OR ".join(f"{c} LIKE ?" for c in SEARCH_COLS) + ")"
             )
             args.extend([like] * len(SEARCH_COLS))
+
+        if codes_raw:
+            codes = [c.strip() for c in codes_raw.split(",") if c.strip()]
+            placeholders = ",".join("?" * len(codes))
+            conditions.append(f'"รหัสหลักสูตร" IN ({placeholders})')
+            args.extend(codes)
 
         where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
 
@@ -151,7 +159,7 @@ class Handler(BaseHTTPRequestHandler):
             cur  = conn.cursor()
             cur.execute(
                 f'SELECT * FROM "tcas_results" {where} '
-                f'ORDER BY "\u0e2a\u0e16\u0e32\u0e1a\u0e31\u0e19", "\u0e04\u0e13\u0e30", "\u0e2b\u0e25\u0e31\u0e01\u0e2a\u0e39\u0e15\u0e23", year',
+                f'ORDER BY "สถาบัน", "คณะ", "หลักสูตร", year',
                 args,
             )
             all_rows = [dict(r) for r in cur.fetchall()]
