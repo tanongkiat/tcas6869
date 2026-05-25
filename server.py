@@ -23,6 +23,20 @@ SORT_COLS_SEARCH = {
     "year", "สถาบัน", "วิทยาเขต", "คณะ", "หลักสูตร", "สาขา/วิชาเอก",
     "รับ", "สมัคร", "ผ่าน", "คะแนนสูงสุด", "คะแนนต่ำสุด",
 }
+# Ordered list of (column_name, type) used for per-column filters.
+# Frontend sends cf0=value, cf1=value, … matching these indices.
+COL_FILTER_LIST = [
+    ("สถาบัน",       "text"),   # 0
+    ("วิทยาเขต",     "text"),   # 1
+    ("คณะ",          "text"),   # 2
+    ("หลักสูตร",     "text"),   # 3
+    ("สาขา/วิชาเอก", "text"),   # 4
+    ("รับ",          "num"),    # 5
+    ("สมัคร",        "num"),    # 6
+    ("ผ่าน",         "num"),    # 7
+    ("คะแนนสูงสุด",  "num"),    # 8
+    ("คะแนนต่ำสุด",  "num"),    # 9
+]
 
 
 def _yr(row):
@@ -95,6 +109,33 @@ class Handler(BaseHTTPRequestHandler):
             except ValueError:
                 pass
 
+        # Per-column filters — frontend sends cf0=val, cf1=val, …
+        # Each index maps to a column in COL_FILTER_LIST.
+        for i, (col, col_type) in enumerate(COL_FILTER_LIST):
+            val = params.get(f"cf{i}", [""])[0].strip()
+            if not val:
+                continue
+            if col_type == "text":
+                conditions.append(f'"{col}" LIKE ?')
+                args.append(f"%{val}%")
+            else:  # numeric — supports >=, <=, >, <, = prefix; bare number = exact
+                matched_op = False
+                for op in (">=", "<=", ">", "<", "="):
+                    if val.startswith(op):
+                        try:
+                            conditions.append(f'"{col}" {op} ?')
+                            args.append(float(val[len(op):].strip()))
+                            matched_op = True
+                        except ValueError:
+                            pass
+                        break
+                if not matched_op:
+                    try:
+                        conditions.append(f'"{col}" = ?')
+                        args.append(float(val))
+                    except ValueError:
+                        pass
+
         where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
 
         sort_col = params.get("sort", [""])[0].strip()
@@ -115,6 +156,27 @@ class Handler(BaseHTTPRequestHandler):
             cur.execute(f'SELECT COUNT(*) FROM "tcas_results" {where}', args)
             total = cur.fetchone()[0]
 
+            # Aggregate stats over all matching rows (not just the current page)
+            cur.execute(
+                f'SELECT '
+                f'AVG("รับ"), MAX("รับ"), MIN("รับ"), '
+                f'AVG("สมัคร"), MAX("สมัคร"), MIN("สมัคร"), '
+                f'AVG("ผ่าน"), MAX("ผ่าน"), MIN("ผ่าน"), '
+                f'AVG("คะแนนสูงสุด"), MAX("คะแนนสูงสุด"), MIN("คะแนนสูงสุด"), '
+                f'AVG("คะแนนต่ำสุด"), MAX("คะแนนต่ำสุด"), MIN("คะแนนต่ำสุด") '
+                f'FROM "tcas_results" {where}',
+                args,
+            )
+            agg = cur.fetchone()
+            def _f2(v): return round(v, 2) if v is not None else None
+            aggregates = {
+                "รับ":         {"avg": _f2(agg[0]),  "max": agg[1],  "min": agg[2]},
+                "สมัคร":       {"avg": _f2(agg[3]),  "max": agg[4],  "min": agg[5]},
+                "ผ่าน":        {"avg": _f2(agg[6]),  "max": agg[7],  "min": agg[8]},
+                "คะแนนสูงสุด": {"avg": _f2(agg[9]),  "max": agg[10], "min": agg[11]},
+                "คะแนนต่ำสุด": {"avg": _f2(agg[12]), "max": agg[13], "min": agg[14]},
+            }
+
             cur.execute(
                 f'SELECT * FROM "tcas_results" {where} {order_by} LIMIT ? OFFSET ?',
                 args + [per_page, offset],
@@ -123,10 +185,11 @@ class Handler(BaseHTTPRequestHandler):
             conn.close()
 
             payload = {
-                "total":    total,
-                "page":     page,
-                "per_page": per_page,
-                "rows":     rows,
+                "total":      total,
+                "page":       page,
+                "per_page":   per_page,
+                "rows":       rows,
+                "aggregates": aggregates,
             }
             data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
             self._send(200, "application/json; charset=utf-8", data)

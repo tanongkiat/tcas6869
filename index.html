@@ -98,6 +98,7 @@
       font-size: .875rem;
     }
     thead th {
+      position: relative;
       background: #e8eaf6;
       color: #1a237e;
       padding: 11px 12px;
@@ -107,6 +108,58 @@
       border-bottom: 2px solid #c5cae9;
       user-select: none;
     }
+    .resizer {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 5px;
+      height: 100%;
+      cursor: col-resize;
+      user-select: none;
+      z-index: 1;
+    }
+    .resizer:hover,
+    .resizer.resizing {
+      background: rgba(63, 81, 181, 0.45);
+    }
+
+    /* ── Column filter row ── */
+    #thead-filter td {
+      background: #eef0f8;
+      padding: 5px 8px;
+      border-bottom: 2px solid #c5cae9;
+    }
+    .col-filter {
+      width: 100%;
+      padding: 4px 7px;
+      border: 1.5px solid #c5cae9;
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: .8rem;
+      outline: none;
+      background: #fff;
+      transition: border-color .2s;
+      box-sizing: border-box;
+    }
+    .col-filter:focus { border-color: #3949ab; }
+    .col-filter.active {
+      border-color: #3949ab;
+      background: #e8eaf6;
+    }
+    .num-filter { text-align: right; }
+    .btn-clear-cf {
+      background: transparent;
+      border: 1.5px solid #c5cae9;
+      border-radius: 4px;
+      color: #777;
+      font-size: .8rem;
+      cursor: pointer;
+      padding: 3px 8px;
+      font-family: inherit;
+      transition: background .15s;
+    }
+    .btn-clear-cf:hover { background: #e8eaf6; color: #1a237e; border-color: #9fa8da; }
+
     thead th.num { text-align: right; }
     thead th.sortable { cursor: pointer; }
     thead th.sortable:hover { background: #d1d5f0; }
@@ -144,6 +197,25 @@
     /* score highlight */
     .score-high { color: #2e7d32; font-weight: 600; }
     .score-low  { color: #b71c1c; font-weight: 600; }
+
+    /* ── Aggregate footer ── */
+    #tfoot-agg td {
+      padding: 6px 12px;
+      background: #f0f2fc;
+      font-size: .8rem;
+      border-top: none;
+      border-bottom: 1px solid #e0e3f5;
+    }
+    #tfoot-agg tr:first-child td { border-top: 2px solid #9fa8da; }
+    #tfoot-agg tr:last-child  td { border-bottom: none; }
+    .agg-label {
+      text-align: right;
+      color: #5c6bc0;
+      font-weight: 600;
+      font-size: .75rem;
+      letter-spacing: .03em;
+    }
+    .agg-val { color: #333; }
 
     /* ── Pagination ── */
     .pagination {
@@ -289,10 +361,50 @@
         <th class="num sortable" data-sort="คะแนนสูงสุด">คะแนนสูงสุด</th>
         <th class="num sortable" data-sort="คะแนนต่ำสุด">คะแนนต่ำสุด</th>
       </tr>
+      <tr id="thead-filter">
+        <td class="cb-col"><button class="btn-clear-cf" onclick="clearColFilters()" title="ล้างตัวกรองทั้งหมด">✕</button></td>
+        <td></td>
+        <td><input class="col-filter" data-col="สถาบัน"       data-col-idx="0" placeholder="กรอง…" /></td>
+        <td><input class="col-filter" data-col="วิทยาเขต"     data-col-idx="1" placeholder="กรอง…" /></td>
+        <td><input class="col-filter" data-col="คณะ"          data-col-idx="2" placeholder="กรอง…" /></td>
+        <td><input class="col-filter" data-col="หลักสูตร"     data-col-idx="3" placeholder="กรอง…" /></td>
+        <td><input class="col-filter" data-col="สาขา/วิชาเอก" data-col-idx="4" placeholder="กรอง…" /></td>
+        <td><input class="col-filter num-filter" data-col="รับ"          data-col-idx="5" placeholder="≥50 / ≤100" /></td>
+        <td><input class="col-filter num-filter" data-col="สมัคร"        data-col-idx="6" placeholder="≥50 / ≤100" /></td>
+        <td><input class="col-filter num-filter" data-col="ผ่าน"         data-col-idx="7" placeholder="≥50 / ≤100" /></td>
+        <td><input class="col-filter num-filter" data-col="คะแนนสูงสุด"  data-col-idx="8" placeholder="≥50 / ≤100" /></td>
+        <td><input class="col-filter num-filter" data-col="คะแนนต่ำสุด"  data-col-idx="9" placeholder="≥50 / ≤100" /></td>
+      </tr>
     </thead>
     <tbody id="tbody">
       <tr class="state-row"><td colspan="12">กำลังโหลด…</td></tr>
     </tbody>
+    <tfoot id="tfoot-agg">
+      <tr>
+        <td colspan="7" class="agg-label">เฉลี่ย</td>
+        <td class="num agg-val" data-agg-col="รับ"         data-agg-type="avg">—</td>
+        <td class="num agg-val" data-agg-col="สมัคร"       data-agg-type="avg">—</td>
+        <td class="num agg-val" data-agg-col="ผ่าน"        data-agg-type="avg">—</td>
+        <td class="num agg-val" data-agg-col="คะแนนสูงสุด" data-agg-type="avg">—</td>
+        <td class="num agg-val" data-agg-col="คะแนนต่ำสุด" data-agg-type="avg">—</td>
+      </tr>
+      <tr>
+        <td colspan="7" class="agg-label">สูงสุด</td>
+        <td class="num agg-val" data-agg-col="รับ"         data-agg-type="max">—</td>
+        <td class="num agg-val" data-agg-col="สมัคร"       data-agg-type="max">—</td>
+        <td class="num agg-val" data-agg-col="ผ่าน"        data-agg-type="max">—</td>
+        <td class="num agg-val" data-agg-col="คะแนนสูงสุด" data-agg-type="max">—</td>
+        <td class="num agg-val" data-agg-col="คะแนนต่ำสุด" data-agg-type="max">—</td>
+      </tr>
+      <tr>
+        <td colspan="7" class="agg-label">ต่ำสุด</td>
+        <td class="num agg-val" data-agg-col="รับ"         data-agg-type="min">—</td>
+        <td class="num agg-val" data-agg-col="สมัคร"       data-agg-type="min">—</td>
+        <td class="num agg-val" data-agg-col="ผ่าน"        data-agg-type="min">—</td>
+        <td class="num agg-val" data-agg-col="คะแนนสูงสุด" data-agg-type="min">—</td>
+        <td class="num agg-val" data-agg-col="คะแนนต่ำสุด" data-agg-type="min">—</td>
+      </tr>
+    </tfoot>
   </table>
 </div>
 
@@ -327,6 +439,27 @@
     });
   });
 
+  // ── Column filter inputs ────────────────────────────────────────────────────
+  let colFilterTimer;
+  document.querySelectorAll('.col-filter').forEach(inp => {
+    inp.addEventListener('input', () => {
+      clearTimeout(colFilterTimer);
+      inp.classList.toggle('active', inp.value.trim() !== '');
+      colFilterTimer = setTimeout(() => search(1), 400);
+    });
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { clearTimeout(colFilterTimer); search(1); }
+    });
+  });
+
+  function clearColFilters() {
+    document.querySelectorAll('.col-filter').forEach(inp => {
+      inp.value = '';
+      inp.classList.remove('active');
+    });
+    search(1);
+  }
+
   function updateSortHeaders() {
     document.querySelectorAll("thead th.sortable").forEach(th => {
       th.classList.remove("sort-asc", "sort-desc");
@@ -342,6 +475,10 @@
     const year = document.getElementById("year").value;
     let url  = `/api/search?q=${encodeURIComponent(q)}&year=${encodeURIComponent(year)}&page=${page}&per_page=${PER_PAGE}`;
     if (sortCol) url += `&sort=${encodeURIComponent(sortCol)}&dir=${sortDir}`;
+    document.querySelectorAll('.col-filter').forEach(inp => {
+      const val = inp.value.trim();
+      if (val) url += `&cf${inp.dataset.colIdx}=${encodeURIComponent(val)}`;
+    });
 
     setLoading();
 
@@ -352,6 +489,7 @@
       renderTable(data.rows);
       renderPagination(data.total, page);
       renderStats(data.total, page, data.rows.length);
+      renderAggregates(data.aggregates);
     } catch (err) {
       document.getElementById("tbody").innerHTML =
         `<tr class="state-row"><td colspan="12">เกิดข้อผิดพลาด: ${esc(err.message)}</td></tr>`;
@@ -477,11 +615,69 @@
       : "ไม่พบข้อมูล";
   }
 
+  // ── aggregates ──────────────────────────────────────────────────────────────
+  function renderAggregates(agg) {
+    document.querySelectorAll('.agg-val').forEach(cell => {
+      const col  = cell.dataset.aggCol;
+      const type = cell.dataset.aggType;
+      const val  = agg?.[col]?.[type];
+      if (val == null) { cell.textContent = '—'; return; }
+      cell.textContent = type === 'avg'
+        ? Number(val).toFixed(2)
+        : Number(val).toLocaleString();
+    });
+  }
+
   // ── formatters ──────────────────────────────────────────────────────────────
   function esc(v)   { return v == null ? "" : String(v).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
   function txt(v)   { return v == null || v === "" ? `<span class="dim">—</span>` : esc(v); }
   function num(v)   { return v == null ? `<span class="dim">—</span>` : Number(v).toLocaleString(); }
   function score(v) { return v == null ? `<span class="dim">—</span>` : Number(v).toFixed(2); }
+
+  // ── Column resizing ─────────────────────────────────────────────────────────
+  function initColumnResizers() {
+    document.querySelectorAll('thead th').forEach(th => {
+      const resizer = document.createElement('div');
+      resizer.classList.add('resizer');
+      th.appendChild(resizer);
+
+      // Prevent resizer clicks from triggering column sort
+      resizer.addEventListener('click', e => e.stopPropagation());
+
+      resizer.addEventListener('mousedown', e => {
+        e.preventDefault();
+
+        // On first resize, lock column widths and switch to fixed layout
+        const table = th.closest('table');
+        if (table.style.tableLayout !== 'fixed') {
+          document.querySelectorAll('thead th').forEach(h => {
+            h.style.width = h.offsetWidth + 'px';
+          });
+          table.style.tableLayout = 'fixed';
+          table.style.width = table.offsetWidth + 'px';
+        }
+
+        const startX = e.pageX;
+        const startW = th.offsetWidth;
+        document.body.style.cursor = 'col-resize';
+        resizer.classList.add('resizing');
+
+        function onMove(e) {
+          th.style.width = Math.max(40, startW + e.pageX - startX) + 'px';
+        }
+        function onUp() {
+          document.body.style.cursor = '';
+          resizer.classList.remove('resizing');
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+        }
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+      });
+    });
+  }
+
+  initColumnResizers();
 
   // Initial load
   search(1);
